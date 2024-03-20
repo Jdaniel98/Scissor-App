@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download QR Code</title>
+    <link rel="stylesheet"
+          type="text/css"
+          href="{{ url_for('static', path='/url/css/style.css') }}">
+
+          <style>
+            body{
+                background-color:rgb(5, 27, 11);
+            }
+          </style>
+          <style>
+            h1{
+                color: white;
+            }
+          </style>
+          <style>
+            p{
+                color: white;
+            }
+          </style>
+          <style>
+            .d{
+                color: black;
+                background-color:orange;
+                border-radius: 5px;
+            }
+          </style>
+          <style>
+            .d:hover{
+                background-color: white;
+            }
+          </style>
+
+          <style>
+            .e{
+                color: white;
+            }
+          </style>
+</head>
+<body>
+    <h1>Download QR Code</h1>
+    <p>Click the button below to download the QR code for the specified URL.</p>
+    <form action="/qrcode" method="get">
+        <label class="e" for="url"> Enter URL:</label>
+        <input type="text" id="url" name="url" placeholder="Enter URL">
+        <button class="d">Download QR Code</button>
+    </form>
+</body>
+</html>
+
