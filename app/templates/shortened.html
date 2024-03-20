@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shortened URL</title>
+    <link rel="stylesheet"
+          type="text/css"
+          href="{{ url_for('static', path='/url/css/style.css') }}">
+          <style>
+            body{
+                background-color:rgb(5, 27, 11);;
+            }
+          </style>
+          <style>
+            h2{
+                color: white;
+            }
+          </style>
+          <style>
+            p a{
+                color: white;
+            }
+          </style>
+</head>
+<body>
+    <h2>Your shortened URL:</h2>
+    <p><a href="{{ short_url }}", target="_blank">{{ short_url }}</a></p>
+       <img src="/qrcode?url={{ short_url }}" alt="QR Code for {{ short_url }}">
+<!-- 
+    <h2>QR Code:</h2>
+    <p>Here is the QR code for the shortened URL:</p>
+    <img src="/qrcode?url={{ long_url }}" alt="QR Code for {{ long_url }}">
+
+    <h2>Download QR Code:</h2>
+    <p>Click the button below to download the QR code image:</p>
+    <a href="/qrcode?url={{ long_url }}" download="qrcode.png">
+        <button>Download QR Code</button> -->
+    <!-- </a> -->
+</body>
+</html>
+
+
+<!-- 
+<a href="/qrcode?url={{ short_url }}" download="qrcode.png">-->
+<!--    <img src="/qrcode?url={{ short_url }}" alt="QR Code for {{ short_url }}">-->
+<!--</a> -->
+
+
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+<!--    <title>Shortened URL</title>-->
+<!--</head>-->
+<!--<body>-->
+<!--    <h2>Your shortened URL:</h2>-->
+<!--    <p><a href="{{ short_url }}" target="_blank">{{ short_url }}</a></p>-->
+
+<!--    <h2>QR Code:</h2>-->
+<!--    <p>Here is the QR code for the shortened URL:</p>-->
+<!--    <img src="/qrcode?url={{ short_url }}" alt="QR Code for {{ short_url }}">-->
+
+<!--    <h2>Download QR Code:</h2>-->
+<!--    <p>Click the button below to download the QR code image:</p>-->
+<!--    <a href="/qrcode?url={{ short_url }}" download="qrcode.png">-->
+<!--        <button>Download QR Code</button>-->
+<!--    </a>-->
+<!--</body>-->
+<!--</html>-->

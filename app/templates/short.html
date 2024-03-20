@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+    <link rel="stylesheet"
+          type="text/css"
+          href="{{ url_for('static', path='/url/css/style.css') }}">
+    <style >h1{
+        color: white;
+        font-size: 30px;
+        
+    }
+        .r h1 .form{
+            border-radius: 30px;
+        background-color: brown;
+        }
+    
+    body{
+    background-color:rgb(5, 27, 11);
+        
+    }
+    .rm{
+        color:rgb(3, 9, 29);
+        background-color: orange;
+        border-radius: 5px;
+    }
+    
+    </style>  
+    <style>
+        .rm:hover{
+            background-color: white;
+            
+        }
+    </style>       
+</head>
+<body>
+    
+    <div class="r">
+    <h1>URL Shortener</h1>
+    <form action="/shorten/" method="post">
+        <input type="url" name="long_url" placeholder="Enter URL">
+        <input type="text" name="custom_url" placeholder="Enter Custom URL">
+        <button type="submit" class="rm">shorten</button>
+    </form>
+</div>
+
+<!-- <h2>Your shortened URL:</h2>
+<p><a href="{{ short_url }}", target="_blank">{{ short_url }}</a></p>
+
+<h2>QR Code:</h2>
+<p>Here is the QR code for the shortened URL:</p>
+<img src="/qrcode?url={{ long_url }}" alt="QR Code for {{ long_url }}">
+
+<h2>Download QR Code:</h2>
+<p>Click the button below to download the QR code image:</p>
+<a href="/qrcode?url={{ long_url }}" download="qrcode.png">
+    <button>Download QR Code</button>
+</a> -->
+</body>
+</html>
+
+
+
+
