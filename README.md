@@ -23,7 +23,7 @@ A web application built with FastAPI for shortening URLs, featuring a user-frien
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/fastapi-url-shortener.git
+   https://github.com/Jdaniel98/Scissor-App.git
    cd fastapi-url-shortener
    ```
 
