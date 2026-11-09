@@ -1,14 +1,18 @@
+import os
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-SQLALCHEMY_DATABASE_URL = 'sqlite:///./scissors.sqlite'
+# SQLite file in the working directory by default; set DATABASE_URL to use another database.
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./scissors.sqlite")
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False,bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
 
 def get_db():
     db = SessionLocal()

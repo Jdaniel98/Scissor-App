@@ -6,21 +6,23 @@
     <title>Analytics</title>
     <link rel="stylesheet"
           type="text/css"
-          href="{{ url_for('static', path='/url/css/style.css') }}">
-          <style>
-            body{
-                background-color:rgb(5, 27, 11);
-            }
-          </style>
+          href="{{ url_for('static', path='/css/style.css') }}">
+    <style>
+        body { background-color: rgb(5, 27, 11); }
+        h2, p, li, p a { color: white; }
+    </style>
 </head>
 <body>
-    <h2>Analytics for Shortened URL: {{ short_url }}</h2>
-    <p>Total Clicks: {{ clicks }}</p>
-    <botton ><a href="/analytics">total-click</a></botton>
+    <h2>Analytics for {{ short_link }}</h2>
+    <p>Points to: <a href="{{ long_url }}">{{ long_url }}</a></p>
+    <p>Total clicks: {{ clicks }}</p>
     <ul>
     {% for click in click_data %}
-        <li>IP Address: {{ click.ip_address }}, Clicked At: {{ click.created_at }}</li>
+        <li>Clicked at {{ click.created_at }}</li>
+    {% else %}
+        <li>No clicks yet.</li>
     {% endfor %}
     </ul>
+    <p><a href="/urls">All links</a></p>
 </body>
 </html>
