@@ -6,7 +6,7 @@
     <title>URL Shortener</title>
     <link rel="stylesheet"
           type="text/css"
-          href="{{ url_for('static', path='/url/css/style.css') }}">
+          href="{{ url_for('static', path='/css/style.css') }}">
     <style >h1{
         color: white;
         font-size: 30px;
@@ -39,9 +39,9 @@
     
     <div class="r">
     <h1>URL Shortener</h1>
-    <form action="/shorten/" method="post">
-        <input type="url" name="long_url" placeholder="Enter URL">
-        <input type="text" name="custom_url" placeholder="Enter Custom URL">
+    <form action="/shorten" method="post">
+        <input type="url" name="long_url" placeholder="Enter URL" required>
+        <input type="text" name="custom_url" placeholder="Custom link (optional)">
         <button type="submit" class="rm">shorten</button>
     </form>
 </div>

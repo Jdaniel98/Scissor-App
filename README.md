@@ -1,89 +1,64 @@
-# FastAPI URL Shortener
+# Scissor
 
-A web application built with FastAPI for shortening URLs, featuring a user-friendly interface and database integration.
+A small URL shortener built with FastAPI, SQLAlchemy and server-rendered Jinja2 pages.
 
-## Features
+## What it does
 
-- URL shortening functionality
-- FastAPI backend
-- Jinja2 templating for frontend
-- CORS middleware for cross-origin requests
-- Static file serving
-- Database integration with SQLAlchemy
+- Shortens a URL to a random 6-character code, or to a custom link you choose
+- Redirects short links and counts every click
+- Shows per-link analytics: total clicks and when each click happened
+- Generates a QR code for any URL, including the short link it just made
+- Lists every link created, with its click count
 
-## Requirements
+Data is stored in SQLite by default (`scissors.sqlite` in the working directory). Set
+`DATABASE_URL` to any SQLAlchemy URL to use another database.
 
-- Python 3.7+
-- FastAPI
-- Jinja2
-- SQLAlchemy
-- (Other dependencies as needed)
+## Run it
 
-## Installation
+Requires Python 3.10 or later.
 
-1. Clone this repository:
-   ```
-   https://github.com/Jdaniel98/Scissor-App.git
-   cd fastapi-url-shortener
-   ```
-
-2. Create and activate a virtual environment:
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-   ```
-
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-## Project Structure
-
-```
-app/
-├── main.py
-├── database/
-│   ├── db.py
-│   └── models.py
-├── routers/
-│   └── url.py
-├── static/
-├── templates/
-│   └── index.html
-└── templates.py
-```
-
-## Usage
-
-To run the application:
-
-```
+```bash
+git clone https://github.com/Jdaniel98/Scissor-App.git
+cd Scissor-App
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-The application will be available at `http://localhost:8000`.
+Open http://127.0.0.1:8000. The interactive API docs are at http://127.0.0.1:8000/docs.
 
-## API Endpoints
+## Routes
 
-- `GET /`: Home page
-- (Other endpoints defined in `url_router`)
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/` | Landing page |
+| GET | `/url` | Form to shorten a URL |
+| POST | `/shorten` | Create a short link (`long_url`, optional `custom_url`) |
+| GET | `/urls` | All links with click counts |
+| GET | `/analytics/{code}` | Clicks for one link |
+| GET | `/qrcode?url=...` | QR code PNG for a URL |
+| GET | `/{code}` | Redirect to the original URL |
 
-## Configuration
+Custom links must be 3 to 32 letters, digits, hyphens or underscores, and can't reuse a name
+the app already serves (such as `urls` or `analytics`).
 
-- CORS is enabled for all origins (`"*"`). Modify the `origins` list in `main.py` to restrict access if needed.
-- Database models are defined in `app/database/models.py` and use SQLAlchemy ORM.
-- Static files are served from the `app/static` directory.
-- HTML templates are located in the `app/templates` directory and use Jinja2.
+## Tests
 
-## Contributing
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+The tests run against a throwaway SQLite database and cover shortening, redirects, click
+counting, per-link analytics, validation and QR generation. CI runs them on Python 3.10 and
+3.12.
+
+## Limitations
+
+- No accounts: every link is visible on `/urls` to anyone who can reach the app.
+- No rate limiting, so it isn't ready to expose to the public internet as is.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Disclaimer
-
-This project is provided as-is, without any guarantees. Ensure to follow best practices for security and performance when deploying to a production environment.
+MIT
