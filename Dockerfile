@@ -24,4 +24,6 @@ USER scissor
 
 EXPOSE 8000
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+# Hosts like Render set PORT. Trust their proxy's X-Forwarded-* headers so short links
+# come out as https:// rather than the internal http:// address.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips '*'"]

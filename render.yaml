@@ -1,0 +1,42 @@
+# Render Blueprint: the web service, Postgres and Key Value (Redis) in one region.
+# In Render: New > Blueprint, pick this repo, and Render creates all three.
+#
+# Everything starts on the free plans. Free web services sleep after 15 idle minutes and
+# free Postgres expires 30 days after creation; move the web service to "starter" and the
+# database to "basic-256mb" before launch.
+
+services:
+  - type: web
+    name: scissor
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: scissor-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: scissor-kv
+          type: keyvalue
+          property: connectionString
+
+  - type: keyvalue
+    name: scissor-kv
+    plan: free
+    region: frankfurt
+    maxmemoryPolicy: allkeys-lru
+    # Reachable only from services in this Render workspace.
+    ipAllowList: []
+
+databases:
+  - name: scissor-db
+    plan: free
+    region: frankfurt
+    databaseName: scissor
+    user: scissor
+    postgresMajorVersion: "16"
