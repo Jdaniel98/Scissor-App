@@ -1,32 +1,36 @@
-from sqlalchemy import Boolean,DateTime, Column, Integer, String, ForeignKey, text
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+from datetime import datetime, timezone
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class URL(Base):
     __tablename__ = "urls"
 
-    id = Column(Integer, primary_key=True, nullable=False)
-    long_url = Column(String, nullable=False)
-    short_url = Column(String, unique=True, nullable=False)
-    clicks = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    long_url: Mapped[str] = mapped_column(String)
+    short_url: Mapped[str] = mapped_column(String, unique=True)
+    clicks: Mapped[int | None] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=utcnow, server_default=func.now()
+    )
 
-    
-
-    click = relationship("Click", back_populates="url")
+    click_events: Mapped[list["Click"]] = relationship(back_populates="url")
 
 
 class Click(Base):
     __tablename__ = "clicks"
 
-    id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    url_id = Column(Integer, ForeignKey("urls.id"))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=utcnow, server_default=func.now()
+    )
+    url_id: Mapped[int | None] = mapped_column(ForeignKey("urls.id"), index=True)
 
-    url = relationship("URL", back_populates="click")
-
+    url: Mapped["URL | None"] = relationship(back_populates="click_events")
