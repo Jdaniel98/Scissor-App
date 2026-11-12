@@ -1,20 +1,23 @@
-import os
+from collections.abc import Iterator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-# SQLite file in the working directory by default; set DATABASE_URL to use another database.
-SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./scissors.sqlite")
+from ..config import get_settings
 
-connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
+DATABASE_URL = get_settings().database_url
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 
-Base = declarative_base()
+SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
 
-def get_db():
+class Base(DeclarativeBase):
+    pass
+
+
+def get_db() -> Iterator[Session]:
     db = SessionLocal()
     try:
         yield db

@@ -13,7 +13,18 @@ CODE_LENGTH = 6
 CUSTOM_CODE_PATTERN = re.compile(r"[A-Za-z0-9_-]{3,32}")
 
 # Paths the app serves itself; a short link with one of these names could never be reached
-RESERVED_CODES = {"url", "urls", "shorten", "qrcode", "download-qrcode", "analytics", "static", "docs", "redoc", "openapi.json"}
+RESERVED_CODES = {
+    "url",
+    "urls",
+    "shorten",
+    "qrcode",
+    "download-qrcode",
+    "analytics",
+    "static",
+    "docs",
+    "redoc",
+    "openapi.json",
+}
 
 
 def generate_short_url() -> str:

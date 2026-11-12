@@ -18,11 +18,11 @@
     <p>Total clicks: {{ clicks }}</p>
     <ul>
     {% for click in click_data %}
-        <li>Clicked at {{ click.created_at }}</li>
+        <li>Clicked at {{ click.created_at | utc }}</li>
     {% else %}
         <li>No clicks yet.</li>
     {% endfor %}
     </ul>
-    <p><a href="/urls">All links</a></p>
+    <p><a href="/url">Shorten another</a></p>
 </body>
 </html>
