@@ -21,6 +21,8 @@
     background-color:rgb(5, 27, 11);
 
     }
+    label{ color: white; display: block; margin-top: 8px; }
+    .error{ color: #ffb4a8; background: none; }
     .rm{
         color:rgb(3, 9, 29);
         background-color: orange;
@@ -39,9 +41,12 @@
 
     <div class="r">
     <h1>URL Shortener</h1>
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
     <form action="/shorten" method="post">
-        <input type="url" name="long_url" placeholder="Enter URL" required>
-        <input type="text" name="custom_url" placeholder="Custom link (optional)">
+        <label for="long_url">Long URL</label>
+        <input type="url" id="long_url" name="long_url" placeholder="Enter URL" value="{{ long_url or '' }}" required>
+        <label for="custom_url">Custom link (optional)</label>
+        <input type="text" id="custom_url" name="custom_url" placeholder="Custom link (optional)" value="{{ custom_url or '' }}">
         <button type="submit" class="rm">shorten</button>
     </form>
 </div>

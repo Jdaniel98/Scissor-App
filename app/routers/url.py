@@ -1,48 +1,24 @@
+"""Server-rendered pages and the redirect itself. The logic lives in services/links.py."""
+
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from sqlalchemy import func, select, update
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
-from validators import url as validate_url
 
-from ..database.db import get_db
-from ..database.models import URL, Click
+from ..database.db import SessionLocal
+from ..deps import Links, get_cache, rate_limit
+from ..services.cache import LinkCache
+from ..services.errors import LinkNotFound, ServiceError
+from ..services.links import LinkService
+from ..services.policy import check_destination
 from ..templates import templates
-from ..utils import generate_qr_code, generate_short_url, is_valid_custom_code
+from ..utils import generate_qr_code
 
-MAX_CODE_ATTEMPTS = 10
-
-url_router = APIRouter(tags=["URLs"])
-
-DbSession = Annotated[Session, Depends(get_db)]
-
-# Handlers that touch the database are plain `def`: the session is synchronous, so FastAPI
-# runs them in its thread pool instead of blocking the event loop.
+url_router = APIRouter(tags=["Pages"], include_in_schema=False)
 
 
 def full_short_link(request: Request, code: str) -> str:
     return str(request.base_url) + code
-
-
-def find_url(db: Session, code: str) -> URL | None:
-    return db.scalars(select(URL).where(URL.short_url == code)).first()
-
-
-def insert_url(db: Session, long_url: str, code: str) -> bool:
-    """Insert a link; return False if the code is already taken.
-
-    The unique constraint on `short_url` is the source of truth, so two requests racing for
-    the same code can't both succeed and neither gets a 500.
-    """
-    db.add(URL(long_url=long_url, short_url=code, clicks=0))
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        return False
-    return True
 
 
 @url_router.get("/", response_class=HTMLResponse)
@@ -55,43 +31,35 @@ async def shorten_form(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "short.html")
 
 
-@url_router.post("/shorten", response_class=HTMLResponse)
-def shorten_url(
+@url_router.post(
+    "/shorten",
+    response_class=HTMLResponse,
+    dependencies=[Depends(rate_limit("create", "rate_limit_create"))],
+)
+async def shorten_url(
     request: Request,
     long_url: Annotated[str, Form()],
-    db: DbSession,
+    links: Links,
     custom_url: Annotated[str | None, Form()] = None,
 ) -> HTMLResponse:
-    if not validate_url(long_url):
-        raise HTTPException(status_code=400, detail="URL is not valid")
-
-    custom_url = (custom_url or "").strip()
-    if custom_url:
-        if not is_valid_custom_code(custom_url):
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Custom link must be 3-32 letters, digits, hyphens or underscores, "
-                    "and not a reserved name"
-                ),
-            )
-        if not insert_url(db, long_url, custom_url):
-            raise HTTPException(status_code=400, detail="Custom link already in use")
-        short_url = custom_url
-    else:
-        for _ in range(MAX_CODE_ATTEMPTS):
-            short_url = generate_short_url()
-            if insert_url(db, long_url, short_url):
-                break
-        else:
-            raise HTTPException(
-                status_code=503, detail="Could not generate a free short link; try again"
-            )
-
+    try:
+        created = await links.create(long_url, custom_url)
+    except ServiceError as exc:
+        return templates.TemplateResponse(
+            request,
+            "short.html",
+            {"error": exc.message, "long_url": long_url, "custom_url": custom_url or ""},
+            status_code=exc.status_code,
+        )
+    code = created.link.short_url
     return templates.TemplateResponse(
         request,
         "shortened.html",
-        {"short_url": short_url, "short_link": full_short_link(request, short_url)},
+        {
+            "short_url": code,
+            "short_link": full_short_link(request, code),
+            "edit_key": created.edit_key,
+        },
     )
 
 
@@ -100,10 +68,13 @@ async def download_qr_code_form(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "download_qrcode.html")
 
 
-@url_router.get("/qrcode")
+@url_router.get("/qrcode", dependencies=[Depends(rate_limit("qr", "rate_limit_qr"))])
 async def download_qr_code(url: str) -> Response:
-    if not validate_url(url):
-        raise HTTPException(status_code=400, detail="URL is not valid")
+    # The app's own short links are fine to encode here, unlike as a link destination.
+    try:
+        check_destination(url, own_hosts=set())
+    except ServiceError as exc:
+        raise HTTPException(status_code=400, detail=exc.message) from exc
     return Response(
         content=generate_qr_code(url),
         media_type="image/png",
@@ -112,41 +83,48 @@ async def download_qr_code(url: str) -> Response:
 
 
 @url_router.get("/analytics/{short_url}", response_class=HTMLResponse)
-def get_url_analytics(request: Request, short_url: str, db: DbSession) -> HTMLResponse:
-    db_url = find_url(db, short_url)
-    if not db_url:
-        raise HTTPException(status_code=404, detail="Short URL not found")
-
-    click_data = db.scalars(
-        select(Click).where(Click.url_id == db_url.id).order_by(Click.created_at.desc())
-    ).all()
+async def get_url_analytics(request: Request, short_url: str, links: Links) -> HTMLResponse:
+    try:
+        link = await links.get(short_url)
+    except LinkNotFound as exc:
+        raise HTTPException(status_code=404, detail=exc.message) from exc
     return templates.TemplateResponse(
         request,
         "analytics.html",
         {
             "short_url": short_url,
             "short_link": full_short_link(request, short_url),
-            "long_url": db_url.long_url,
-            "clicks": db_url.clicks,
-            "click_data": click_data,
+            "long_url": link.long_url,
+            "clicks": link.clicks,
+            "click_data": await links.recent_clicks(link),
         },
     )
 
 
+async def record_click(link_id: int, cache: LinkCache) -> None:
+    """Runs after the redirect has been sent, with its own session."""
+    async with SessionLocal() as session:
+        await LinkService(session, cache, set()).record_click(link_id)
+
+
 # Must stay last: it matches any single path segment.
 @url_router.api_route("/{short_url}", methods=["GET", "HEAD"])
-def redirect_to_long_url(request: Request, short_url: str, db: DbSession) -> RedirectResponse:
-    db_url = find_url(db, short_url)
-    if not db_url:
-        raise HTTPException(status_code=404, detail="URL not found")
+async def redirect_to_long_url(
+    request: Request,
+    short_url: str,
+    links: Links,
+    background: BackgroundTasks,
+    cache: Annotated[LinkCache, Depends(get_cache)],
+) -> RedirectResponse:
+    try:
+        target = await links.resolve(short_url)
+    except LinkNotFound as exc:
+        raise HTTPException(status_code=404, detail="URL not found") from exc
 
     # HEAD comes from link checkers and previewers, not people: answer it, don't count it.
     if request.method == "GET":
-        # Increment in SQL so concurrent clicks can't overwrite each other.
-        db.execute(
-            update(URL).where(URL.id == db_url.id).values(clicks=func.coalesce(URL.clicks, 0) + 1)
-        )
-        db.add(Click(url_id=db_url.id))
-        db.commit()
+        background.add_task(record_click, target.id, cache)
 
-    return RedirectResponse(db_url.long_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    # 302, not 301: browsers would cache a 301 forever, so later clicks would go
+    # uncounted and an edited destination would never take effect.
+    return RedirectResponse(target.url, status_code=status.HTTP_302_FOUND)
