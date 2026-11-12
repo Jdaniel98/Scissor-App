@@ -49,6 +49,17 @@ uv run alembic stamp 0001
 uv run alembic upgrade head
 ```
 
+## Deploy to Render
+
+`render.yaml` describes the whole stack: the web service (built from the Dockerfile),
+Postgres 16 and a Key Value (Redis) instance, all in Frankfurt. In Render, choose
+**New > Blueprint** and pick this repository. Migrations run on every deploy.
+
+Everything starts on Render's free plans, which suit a demo but not real traffic: free web
+services sleep after 15 idle minutes and take about a minute to wake, and free Postgres
+expires 30 days after it is created. Before launch, move the web service to `starter` and
+the database to a paid plan in `render.yaml`.
+
 ## Routes
 
 | Method | Path | Purpose |
