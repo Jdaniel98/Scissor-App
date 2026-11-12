@@ -10,6 +10,7 @@
     <style>
         body { background-color: rgb(5, 27, 11); }
         h2, p, p a { color: white; }
+        code { color: #111; background: #f5f5f5; padding: 2px 6px; }
     </style>
 </head>
 <body>
@@ -21,5 +22,9 @@
         &middot; <a href="/analytics/{{ short_url }}">Analytics</a>
         &middot; <a href="/url">Shorten another</a>
     </p>
+    <h2>Your edit key</h2>
+    <p>Save this now: it is shown only once. You need it to change, delete or see stats for
+        this link through the API.</p>
+    <p><code>{{ edit_key }}</code></p>
 </body>
 </html>

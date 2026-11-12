@@ -1,14 +1,16 @@
+"""The server-rendered pages and the redirect."""
+
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
-from app.database.db import SessionLocal
 from app.database.models import URL, Click
-from app.routers import url as url_routes
+from app.services import links as link_service
+from app.services.links import CODE_LENGTH, generate_code, is_valid_custom_code
 from app.templates import format_utc
-from app.utils import CODE_LENGTH, generate_short_url, is_valid_custom_code
 
 
 def shorten(client, long_url="https://example.com/a/long/path", custom_url=None):
@@ -24,7 +26,6 @@ def test_pages_render(client):
 
 
 def test_link_list_is_offline(client):
-    # Every link was public on /urls; it stays off until links have owners.
     shorten(client, custom_url="private-one")
     response = client.get("/urls")
     assert response.status_code == 404
@@ -35,9 +36,10 @@ def test_custom_link_redirects_and_counts_clicks(client):
     response = shorten(client, custom_url="docs-link")
     assert response.status_code == 200
     assert "http://testserver/docs-link" in response.text
+    assert "Your edit key" in response.text
 
     redirect = client.get("/docs-link")
-    assert redirect.status_code == 307
+    assert redirect.status_code == 302
     assert redirect.headers["location"] == "https://example.com/a/long/path"
 
     analytics = client.get("/analytics/docs-link")
@@ -46,7 +48,7 @@ def test_custom_link_redirects_and_counts_clicks(client):
 
 
 def test_generated_code_shape(client):
-    code = generate_short_url()
+    code = generate_code()
     assert len(code) == CODE_LENGTH and code.isalnum()
     assert shorten(client).status_code == 200
 
@@ -54,28 +56,38 @@ def test_generated_code_shape(client):
 def test_generated_code_retries_on_collision(client, monkeypatch):
     shorten(client, custom_url="abcdef")
     codes = iter(["abcdef", "ghijkl"])
-    monkeypatch.setattr(url_routes, "generate_short_url", lambda: next(codes))
+    monkeypatch.setattr(link_service, "generate_code", lambda: next(codes))
 
     response = shorten(client)
     assert response.status_code == 200
     assert "http://testserver/ghijkl" in response.text
 
 
-def test_invalid_long_url_rejected(client):
-    assert shorten(client, long_url="not a url").status_code == 400
+def test_gives_up_when_no_free_code(client, monkeypatch):
+    shorten(client, custom_url="same00")
+    monkeypatch.setattr(link_service, "generate_code", lambda: "same00")
+    response = client.post("/api/v1/links", json={"url": "https://example.com"})
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "no_free_code"
+
+
+def test_form_errors_render_on_the_form(client):
+    response = shorten(client, long_url="not a url")
+    assert response.status_code == 400
+    assert response.headers["content-type"].startswith("text/html")
+    assert 'role="alert"' in response.text
+    assert 'value="not a url"' in response.text
 
 
 def test_duplicate_custom_link_rejected(client):
-    # There is no pre-check to race past: the unique constraint decides, and the loser
-    # gets a 400 rather than a 500.
     assert shorten(client, custom_url="taken").status_code == 200
     response = shorten(client, custom_url="taken")
-    assert response.status_code == 400
+    assert response.status_code == 409
     assert "already in use" in response.text
 
 
 def test_reserved_and_malformed_custom_links_rejected(client):
-    for bad in ["urls", "analytics", "a", "has/slash", "x" * 33]:
+    for bad in ["urls", "analytics", "api", "a", "has/slash", "x" * 33]:
         assert shorten(client, custom_url=bad).status_code == 400, bad
     assert not is_valid_custom_code("URLS")
     assert is_valid_custom_code("my_link-1")
@@ -92,13 +104,13 @@ def test_analytics_only_counts_its_own_clicks(client):
     assert client.get("/analytics/two").text.count("Clicked at") == 1
 
 
-def test_concurrent_clicks_are_all_counted(client):
+def test_concurrent_clicks_are_all_counted(client, sync_engine):
     shorten(client, custom_url="busy")
     with ThreadPoolExecutor(max_workers=8) as pool:
         statuses = list(pool.map(lambda _: client.get("/busy").status_code, range(40)))
-    assert statuses == [307] * 40
+    assert statuses == [302] * 40
 
-    with SessionLocal() as db:
+    with Session(sync_engine) as db:
         link = db.scalars(select(URL).where(URL.short_url == "busy")).one()
         events = db.scalar(select(func.count()).select_from(Click).where(Click.url_id == link.id))
     assert link.clicks == 40
@@ -108,7 +120,7 @@ def test_concurrent_clicks_are_all_counted(client):
 def test_head_redirects_without_counting(client):
     shorten(client, custom_url="peek")
     response = client.head("/peek")
-    assert response.status_code == 307
+    assert response.status_code == 302
     assert response.headers["location"] == "https://example.com/a/long/path"
     assert "Total clicks: 0" in client.get("/analytics/peek").text
 

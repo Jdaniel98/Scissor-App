@@ -1,25 +1,38 @@
-from collections.abc import Iterator
+from collections.abc import AsyncIterator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from ..config import get_settings
 
-DATABASE_URL = get_settings().database_url
+settings = get_settings()
+IS_SQLITE = settings.database_url.startswith("sqlite")
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
+engine = create_async_engine(
+    settings.async_database_url,
+    pool_pre_ping=not IS_SQLITE,
+    connect_args={"timeout": 15} if IS_SQLITE else {},
+)
 
-SessionLocal = sessionmaker(bind=engine, autoflush=False)
+if IS_SQLITE:
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _sqlite_pragmas(dbapi_connection, _record):  # type: ignore[no-untyped-def]
+        # WAL lets readers and the writer work at once; busy_timeout waits out short locks.
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=15000")
+        cursor.close()
+
+
+SessionLocal = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
 
 
 class Base(DeclarativeBase):
     pass
 
 
-def get_db() -> Iterator[Session]:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_session() -> AsyncIterator[AsyncSession]:
+    async with SessionLocal() as session:
+        yield session

@@ -20,6 +20,9 @@ class URL(Base):
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=utcnow, server_default=func.now()
     )
+    # SHA-256 of the link's edit key. NULL for links made before edit keys existed:
+    # those can't be changed through the API until accounts can claim them.
+    edit_key_hash: Mapped[str | None] = mapped_column(String(64))
 
     click_events: Mapped[list["Click"]] = relationship(back_populates="url")
 
